@@ -5,11 +5,15 @@ import java.util.List;
 import org.mifosplatform.infrastructure.core.api.JsonCommand;
 import org.mifosplatform.infrastructure.core.data.CommandProcessingResult;
 import org.mifosplatform.template.domain.Template;
+import org.mifosplatform.template.domain.TemplateEntity;
+import org.mifosplatform.template.domain.TemplateType;
 
 
 public interface TemplateDomainService {
 	
 	List<Template> getAll();
+	
+	List<Template> getAllByEntityAndType(TemplateEntity entity, TemplateType type);
 	
 	Template getById(Long id);
 	

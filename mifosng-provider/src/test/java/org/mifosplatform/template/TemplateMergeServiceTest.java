@@ -36,7 +36,7 @@ public class TemplateMergeServiceTest {
 		String name = "TemplateName";
 		String text = "Hello Test for Template {{template.name}}!";
 		
-		template = new Template(name, text, null);
+		template = new Template(name, text, null, null, null);
 		
 		HashMap<String, Object> scopes = new HashMap<String, Object>();
 	    scopes.put("template", template);
@@ -62,7 +62,7 @@ public class TemplateMergeServiceTest {
         dis.readFully(bytes);
         String content = new String(bytes, "UTF-8");
 		
-		template = new Template("TemplateName", content, null);
+		template = new Template("TemplateName", content, null, null, null);
 		
 		HashMap<String, Object> scopes = new HashMap<String, Object>();
 	    scopes.put("installments", installments);

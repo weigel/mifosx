@@ -2,6 +2,7 @@ package org.mifosplatform.template.api;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,12 +12,14 @@ import java.util.Set;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
@@ -30,7 +33,10 @@ import org.mifosplatform.infrastructure.core.api.ApiRequestParameterHelper;
 import org.mifosplatform.infrastructure.core.data.CommandProcessingResult;
 import org.mifosplatform.infrastructure.core.serialization.ApiRequestJsonSerializationSettings;
 import org.mifosplatform.infrastructure.core.serialization.DefaultToApiJsonSerializer;
+import org.mifosplatform.template.data.TemplateData;
 import org.mifosplatform.template.domain.Template;
+import org.mifosplatform.template.domain.TemplateEntity;
+import org.mifosplatform.template.domain.TemplateType;
 import org.mifosplatform.template.service.TemplateDomainService;
 import org.mifosplatform.template.service.TemplateMergeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,10 +48,13 @@ import org.springframework.stereotype.Component;
 @Scope("singleton")
 public class TemplateApiResource {
     
-	private final Set<String> RESPONSE_DATA_PARAMETERS = 
-			new HashSet<String>(Arrays.asList("id", "name", "text"));
+	private final Set<String> RESPONSE_TEMPLATES_DATA_PARAMETERS = 
+			new HashSet<String>(Arrays.asList("id"));
+	private final Set<String> RESPONSE_TEMPLATE_DATA_PARAMETERS = 
+			new HashSet<String>(Arrays.asList("id","entities","types","template"));
 	
 	private final DefaultToApiJsonSerializer<Template> toApiJsonSerializer;
+	private final DefaultToApiJsonSerializer<TemplateData> templateDataApiJsonSerializer;
 	private final ApiRequestParameterHelper apiRequestParameterHelper;
 	private final TemplateDomainService templateService;
 	private final TemplateMergeService templateMergeService;
@@ -53,13 +62,15 @@ public class TemplateApiResource {
 
 	@Autowired
 	public TemplateApiResource(
-			DefaultToApiJsonSerializer<Template> toApiJsonSerializer, 
+			DefaultToApiJsonSerializer<Template> toApiJsonSerializer,
+			DefaultToApiJsonSerializer<TemplateData> templateDataApiJsonSerializer,
 			ApiRequestParameterHelper apiRequestParameterHelper, 
 			TemplateDomainService templateService,
 			TemplateMergeService templateMergeService,
 			PortfolioCommandSourceWritePlatformService commandsSourceWritePlatformService) {
 		
 		this.toApiJsonSerializer = toApiJsonSerializer;
+		this.templateDataApiJsonSerializer = templateDataApiJsonSerializer;
 		this.apiRequestParameterHelper = apiRequestParameterHelper;
 		this.templateService = templateService;
 		this.templateMergeService = templateMergeService;
@@ -68,13 +79,36 @@ public class TemplateApiResource {
 
 	@GET
 	@Produces({ MediaType.APPLICATION_JSON })
-    public String getTemplates(@Context final UriInfo uriInfo) {
-		List<Template> templates = templateService.getAll();
+    public String getTemplates(@DefaultValue("-1") @QueryParam("typeId") int typeId,
+    		@DefaultValue("-1") @QueryParam("entityId") int entityId,@Context final UriInfo uriInfo) {
+		
+		List<Template> templates = new ArrayList<Template>(); 
+		
+		if (typeId != -1 && entityId != -1){
+			 templates = templateService.getAllByEntityAndType(
+					 TemplateEntity.values()[entityId],
+					 TemplateType.values()[typeId]);
+		} else {
+			templates = templateService.getAll();
+		}
 		
 		final ApiRequestJsonSerializationSettings settings = 
 				apiRequestParameterHelper.process(uriInfo.getQueryParameters());
 		return toApiJsonSerializer.serialize(
-				settings, templates, RESPONSE_DATA_PARAMETERS);
+				settings, templates, RESPONSE_TEMPLATES_DATA_PARAMETERS);
+    }
+	
+	@GET
+	@Path("template")
+	@Produces({ MediaType.APPLICATION_JSON })
+    public String getTemplatesByTemplate(@Context final UriInfo uriInfo) {
+		
+		TemplateData templateData = TemplateData.template();
+		
+		final ApiRequestJsonSerializationSettings settings = 
+				apiRequestParameterHelper.process(uriInfo.getQueryParameters());
+		return templateDataApiJsonSerializer.serialize(
+				settings, templateData, RESPONSE_TEMPLATES_DATA_PARAMETERS);
     }
 	
 	@GET
@@ -88,7 +122,35 @@ public class TemplateApiResource {
 		final ApiRequestJsonSerializationSettings settings = 
 				apiRequestParameterHelper.process(uriInfo.getQueryParameters());
 		return this.toApiJsonSerializer.serialize(
-				settings, template, RESPONSE_DATA_PARAMETERS);
+				settings, template, RESPONSE_TEMPLATES_DATA_PARAMETERS);
+    }
+	
+	@GET
+	@Path("{templateId}/template")
+    @Produces({ MediaType.APPLICATION_JSON })
+    public String getTemplateByTemplate(@PathParam("templateId") final Long templateId, 
+    		@Context final UriInfo uriInfo) {
+		
+		TemplateData template = TemplateData.template(
+				templateService.getById(templateId));
+		
+		final ApiRequestJsonSerializationSettings settings = 
+				apiRequestParameterHelper.process(uriInfo.getQueryParameters());
+		System.out.println("QUERY_PARAMETER: "+uriInfo.getQueryParameters());
+		System.out.println("SETTINGS: "+settings);
+		System.out.println("FOO: "+this.templateDataApiJsonSerializer.serialize(
+				settings, template, RESPONSE_TEMPLATE_DATA_PARAMETERS));
+		
+		return this.templateDataApiJsonSerializer.serialize(
+				settings, template, RESPONSE_TEMPLATE_DATA_PARAMETERS);
+    }
+	
+	@GET
+	@Path("entities")
+	@Produces({ MediaType.APPLICATION_JSON })
+    public TemplateEntity[] getEntities() {
+		
+	    return TemplateEntity.values();
     }
 	
 	@PUT

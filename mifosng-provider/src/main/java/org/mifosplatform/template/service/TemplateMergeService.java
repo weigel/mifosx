@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.lang.reflect.Type;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -18,6 +17,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.codehaus.jackson.map.ObjectMapper;
 import org.mifosplatform.infrastructure.core.serialization.FromJsonHelper;
 import org.mifosplatform.template.domain.Template;
 import org.mifosplatform.template.domain.TemplateFunctions;
@@ -28,7 +28,6 @@ import org.springframework.stereotype.Service;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
-import com.google.common.reflect.TypeToken;
 
 @Service
 public class TemplateMergeService {
@@ -52,7 +51,7 @@ public class TemplateMergeService {
 	    		template.getText()),
 				template.getName());
 	    
-	    Map<String, Object> mappers = getCompiledMapFromMappers(template.getMappers());
+	    Map<String, Object> mappers = getCompiledMapFromMappers(template.getMappersAsMap());
 		this.scopes.putAll(mappers);
 		
 		StringWriter stringWriter = new StringWriter();
@@ -70,13 +69,13 @@ public class TemplateMergeService {
 				
 				Mustache mappersMustache = mf.compile(new StringReader(entry.getValue()),"");
 				StringWriter stringWriter = new StringWriter();
-				
+
 				mappersMustache.execute(stringWriter, this.scopes);
 				String url = stringWriter.toString();
 				if(!url.startsWith("http")) {
 					url = this.scopes.get("BASE_URI")+url;
 				}
-				
+				System.out.println("URL: "+url);
 				try {
 					this.scopes.put(entry.getKey(), getMapFromUrl(url));
 				} catch (MalformedURLException e) {
@@ -89,17 +88,23 @@ public class TemplateMergeService {
 		return scopes;
 	}
 	
+	@SuppressWarnings("unchecked")
 	private Map<String, Object> getMapFromUrl(String url) throws  MalformedURLException, IOException{
-	
-		Map<String, Object> values = new HashMap<String, Object>();
-		String jsonText = getStringFromInputStream(getInputstream(url));
-		final Type typeOfMap = new TypeToken<Map<String, Object>>() {}.getType();
-		values = fromApiJsonHelper.extractObjectMap(typeOfMap, jsonText);
 		
-		return values;
+		HttpURLConnection connection = getConnection(url);
+		
+		String response = getStringFromInputStream(connection.getInputStream());
+		HashMap<String,Object> result = new HashMap<String, Object>();
+		System.out.println("CONTENT_TYPE"+connection.getContentType());
+		if (connection.getContentType().equals("text/plain")){
+			result.put("src", response);
+		} else {
+			result = new ObjectMapper().readValue(response, HashMap.class);
+		}
+		return result;
 	}
 	
-	private InputStream getInputstream (String url) {
+	private HttpURLConnection getConnection (String url) {
 		
 		final String name = SecurityContextHolder.getContext().getAuthentication().getName();
 		final String password = SecurityContextHolder.getContext().getAuthentication().getCredentials().toString();
@@ -111,15 +116,14 @@ public class TemplateMergeService {
 		    }
 		});
 		
-		URL someUrl;
-		InputStream inputstream = null ;
+		
+		HttpURLConnection connection = null;
 		try {
-			someUrl = new URL(url);
-			HttpURLConnection connection = (HttpURLConnection) someUrl.openConnection();
+			connection = (HttpURLConnection) new URL(url).openConnection();
 			TrustModifier.relaxHostChecking(connection);
 
 			connection.setDoInput(true);
-			inputstream = connection.getInputStream();
+			
 		} catch (MalformedURLException e) { e.printStackTrace(); } 
 		  catch (IOException e) { e.printStackTrace(); } 
 		  catch (KeyManagementException e) { e.printStackTrace(); } 
@@ -127,7 +131,7 @@ public class TemplateMergeService {
 		  catch (KeyStoreException e) {	e.printStackTrace();
 		}
 		
-		return inputstream;
+		return connection;
 	}
 
 
