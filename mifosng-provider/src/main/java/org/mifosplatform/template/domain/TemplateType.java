@@ -8,12 +8,14 @@ import com.google.gson.annotations.SerializedName;
 public enum TemplateType {
 
 	@SerializedName("Document")
-	DOCUMENT(0,"Document"),
+	DOCUMENT(0,"Document");
+	
+	/** 
 	@SerializedName("E-Mail")
 	EMAIL(1, "E-Mail"),
 	@SerializedName("SMS")
 	SMS(2, "SMS");
-
+	*/
 	private int id;
 	private String name;
 	

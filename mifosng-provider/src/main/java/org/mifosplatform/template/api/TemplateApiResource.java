@@ -33,6 +33,7 @@ import org.mifosplatform.infrastructure.core.api.ApiRequestParameterHelper;
 import org.mifosplatform.infrastructure.core.data.CommandProcessingResult;
 import org.mifosplatform.infrastructure.core.serialization.ApiRequestJsonSerializationSettings;
 import org.mifosplatform.infrastructure.core.serialization.DefaultToApiJsonSerializer;
+import org.mifosplatform.infrastructure.security.service.PlatformSecurityContext;
 import org.mifosplatform.template.data.TemplateData;
 import org.mifosplatform.template.domain.Template;
 import org.mifosplatform.template.domain.TemplateEntity;
@@ -52,7 +53,9 @@ public class TemplateApiResource {
 			new HashSet<String>(Arrays.asList("id"));
 	private final Set<String> RESPONSE_TEMPLATE_DATA_PARAMETERS = 
 			new HashSet<String>(Arrays.asList("id","entities","types","template"));
+	private final String RESOURCEN_NAME_FOR_PERMISSION = "template";
 	
+	private final PlatformSecurityContext context;
 	private final DefaultToApiJsonSerializer<Template> toApiJsonSerializer;
 	private final DefaultToApiJsonSerializer<TemplateData> templateDataApiJsonSerializer;
 	private final ApiRequestParameterHelper apiRequestParameterHelper;
@@ -62,6 +65,7 @@ public class TemplateApiResource {
 
 	@Autowired
 	public TemplateApiResource(
+			PlatformSecurityContext context, 
 			DefaultToApiJsonSerializer<Template> toApiJsonSerializer,
 			DefaultToApiJsonSerializer<TemplateData> templateDataApiJsonSerializer,
 			ApiRequestParameterHelper apiRequestParameterHelper, 
@@ -69,6 +73,7 @@ public class TemplateApiResource {
 			TemplateMergeService templateMergeService,
 			PortfolioCommandSourceWritePlatformService commandsSourceWritePlatformService) {
 		
+		this.context = context;
 		this.toApiJsonSerializer = toApiJsonSerializer;
 		this.templateDataApiJsonSerializer = templateDataApiJsonSerializer;
 		this.apiRequestParameterHelper = apiRequestParameterHelper;
@@ -81,6 +86,8 @@ public class TemplateApiResource {
 	@Produces({ MediaType.APPLICATION_JSON })
     public String getTemplates(@DefaultValue("-1") @QueryParam("typeId") int typeId,
     		@DefaultValue("-1") @QueryParam("entityId") int entityId,@Context final UriInfo uriInfo) {
+		
+		context.authenticatedUser().validateHasReadPermission(RESOURCEN_NAME_FOR_PERMISSION);
 		
 		List<Template> templates = new ArrayList<Template>(); 
 		
@@ -103,6 +110,8 @@ public class TemplateApiResource {
 	@Produces({ MediaType.APPLICATION_JSON })
     public String getTemplatesByTemplate(@Context final UriInfo uriInfo) {
 		
+		context.authenticatedUser().validateHasReadPermission(RESOURCEN_NAME_FOR_PERMISSION);
+		
 		TemplateData templateData = TemplateData.template();
 		
 		final ApiRequestJsonSerializationSettings settings = 
@@ -116,6 +125,8 @@ public class TemplateApiResource {
     @Produces({ MediaType.APPLICATION_JSON })
     public String getTemplate(@PathParam("templateId") final Long templateId, 
     		@Context final UriInfo uriInfo) {
+		
+		context.authenticatedUser().validateHasReadPermission(RESOURCEN_NAME_FOR_PERMISSION);
 		
 		Template template = templateService.getById(templateId);
 		
@@ -131,6 +142,8 @@ public class TemplateApiResource {
     public String getTemplateByTemplate(@PathParam("templateId") final Long templateId, 
     		@Context final UriInfo uriInfo) {
 		
+		context.authenticatedUser().validateHasReadPermission(RESOURCEN_NAME_FOR_PERMISSION);
+		
 		TemplateData template = TemplateData.template(
 				templateService.getById(templateId));
 		
@@ -143,14 +156,6 @@ public class TemplateApiResource {
 		
 		return this.templateDataApiJsonSerializer.serialize(
 				settings, template, RESPONSE_TEMPLATE_DATA_PARAMETERS);
-    }
-	
-	@GET
-	@Path("entities")
-	@Produces({ MediaType.APPLICATION_JSON })
-    public TemplateEntity[] getEntities() {
-		
-	    return TemplateEntity.values();
     }
 	
 	@PUT
